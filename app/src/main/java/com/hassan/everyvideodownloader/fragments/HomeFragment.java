@@ -5,20 +5,28 @@ import static android.view.View.VISIBLE;
 
 import android.Manifest;
 import android.animation.ObjectAnimator;
-import android.annotation.SuppressLint;
+import android.content.BroadcastReceiver;
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.SharedPreferences;
+import android.content.UriPermission;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.Settings;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.animation.DecelerateInterpolator;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -26,51 +34,104 @@ import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.documentfile.provider.DocumentFile;
 import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
 
 import com.hassan.everyvideodownloader.R;
-import com.hassan.everyvideodownloader.adapters.VideoListAdapter;
 import com.hassan.everyvideodownloader.helpers.YtDlpHelper;
+import com.hassan.everyvideodownloader.utils.DownloadService;
 
-import java.io.File;
-import java.util.ArrayList;
-import java.util.List;
 
 public class HomeFragment extends Fragment {
 
     private static final int REQUEST_PERMISSION = 100;
+    private static final int REQUEST_CODE_PICK_FOLDER = 2001;
+    private static final String PREFS_NAME = "every_video_downloader_prefs";
+    private static final String KEY_FOLDER_URI = "selected_folder_uri";
 
     private EditText urlInput;
     private Button downloadBtn;
     private ProgressBar downloadProgress;
     private TextView progressText;
-    private YtDlpHelper ytDlpHelper;
-    private static final int REQUEST_CODE_PICK_FOLDER = 2001;
+    private ImageView changeFolderBtn, pasteLinkBtn;
+
     private String downloadUrl;
 
+    private final BroadcastReceiver downloadReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            String action = intent.getAction();
+            if (DownloadService.ACTION_PROGRESS.equals(action)) {
+                int percent = intent.getIntExtra("percent", -1);
+                String status = intent.getStringExtra("status");
+
+                downloadProgress.setVisibility(VISIBLE);
+                progressText.setVisibility(VISIBLE);
+
+                if (percent >= 0) {
+                    downloadProgress.setIndeterminate(false);
+                    downloadProgress.setProgress(percent);
+                } else {
+                    downloadProgress.setIndeterminate(true);
+                }
+                progressText.setText(status);
+
+            } else if (DownloadService.ACTION_COMPLETE.equals(action)) {
+                progressText.setText("✅ Download finished");
+                downloadProgress.setVisibility(GONE);
+            }
+        }
+    };
 
     public HomeFragment() {
-        // Required empty public constructor
+        // Required empty constructor
     }
 
     @Override
-    public View onCreateView(LayoutInflater inflater, ViewGroup container,
-                             Bundle savedInstanceState) {
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_home, container, false);
 
-        // Initialize UI elements
         urlInput = view.findViewById(R.id.urlInput);
         downloadBtn = view.findViewById(R.id.downloadBtn);
+        changeFolderBtn = view.findViewById(R.id.modifyFoldersBtn);
         downloadProgress = view.findViewById(R.id.downloadProgress);
         progressText = view.findViewById(R.id.progressText);
+        pasteLinkBtn = view.findViewById(R.id.pasteLink);
 
-        ytDlpHelper = new YtDlpHelper(getContext());
+        setupPasteButton();
+        setupDownloadButton();
+        setupChangeFolderButton();
 
-        // Load existing videos on launch
-        // loadDownloadedVideos();
+        return view;
+    }
 
+    private void setupPasteButton() {
+        pasteLinkBtn.setOnClickListener(v -> {
+            if ("clear".equals(pasteLinkBtn.getTag())) {
+                urlInput.setText("");
+                pasteLinkBtn.setImageResource(R.drawable.copy);
+                pasteLinkBtn.setTag("paste");
+            } else {
+                ClipboardManager clipboard = (ClipboardManager) requireContext().getSystemService(Context.CLIPBOARD_SERVICE);
+                if (clipboard != null && clipboard.hasPrimaryClip()) {
+                    ClipData clipData = clipboard.getPrimaryClip();
+                    if (clipData != null && clipData.getItemCount() > 0) {
+                        CharSequence pastedText = clipData.getItemAt(0).coerceToText(getContext());
+                        if (pastedText != null) {
+                            urlInput.setText(pastedText.toString());
+                            pasteLinkBtn.setImageResource(R.drawable.clear);
+                            pasteLinkBtn.setTag("clear");
+                            Toast.makeText(getContext(), "📋 Link pasted", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                } else {
+                    Toast.makeText(getContext(), "Clipboard is empty", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+    }
+
+    private void setupDownloadButton() {
         downloadBtn.setOnClickListener(v -> {
             if (checkPermissions()) {
                 startDownload();
@@ -78,111 +139,127 @@ public class HomeFragment extends Fragment {
                 requestPermissions();
             }
         });
+    }
 
-        return view;
+    private void setupChangeFolderButton() {
+        changeFolderBtn.setOnClickListener(v -> pickFolder());
     }
 
     private void startDownload() {
-        String url = urlInput.getText().toString().trim();
-        if (url.isEmpty()) {
+        downloadUrl = urlInput.getText().toString().trim();
+        if (downloadUrl.isEmpty()) {
             Toast.makeText(getContext(), "Enter a valid URL", Toast.LENGTH_SHORT).show();
             return;
         }
-        this.downloadUrl = url; // Store URL until folder picked
-        pickFolder();
+
+        Uri savedFolder = getSavedFolderUri();
+        if (isFolderValid(savedFolder)) {
+            Log.d("HomeFragment", "Valid folder found, starting download");
+            startDownloadService(savedFolder);
+        } else {
+            Toast.makeText(getContext(), "Please choose a valid download folder", Toast.LENGTH_SHORT).show();
+            pickFolder();
+        }
+    }
+
+    private void startDownloadService(Uri folderUri) {
+        Log.d("HomeFragment", "Starting DownloadService for: " + downloadUrl + " to folder: " + folderUri);
+
+        Intent serviceIntent = new Intent(getContext(), DownloadService.class);
+        serviceIntent.putExtra("url", downloadUrl);
+        serviceIntent.putExtra("folderUri", folderUri.toString());
+
+        ContextCompat.startForegroundService(requireContext(), serviceIntent);
     }
 
     private void pickFolder() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
-                | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION |
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION |
+                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
         startActivityForResult(intent, REQUEST_CODE_PICK_FOLDER);
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(DownloadService.ACTION_PROGRESS);
+        filter.addAction(DownloadService.ACTION_COMPLETE);
+        ContextCompat.registerReceiver(requireContext(), downloadReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
+    }
+
+//    @Override
+//    public void onPause() {
+//        super.onPause();
+//        requireContext().unregisterReceiver(downloadReceiver);
+//    }
+
+    @Override
     public void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_CODE_PICK_FOLDER && resultCode == getActivity().RESULT_OK) {
-            if (data != null) {
-                Uri pickedFolderUri = data.getData();
-                requireContext().getContentResolver().takePersistableUriPermission(
-                        pickedFolderUri,
-                        Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                );
-
-                ytDlpHelper.downloadVideoWithFolder(downloadUrl, pickedFolderUri.toString(),
-                        new YtDlpHelper.DownloadProgressCallback() {
-                            @Override
-                            public void onProgress(int percent, String statusText) {
-                                if (getActivity() == null) return;
-                                getActivity().runOnUiThread(() -> {
-                                    downloadProgress.setVisibility(VISIBLE);
-                                    progressText.setVisibility(VISIBLE);
-                                    downloadProgress.setProgress(percent);
-                                    progressText.setText(statusText + "% Downloaded");
-                                });
-                            }
-
-                            @Override
-                            public void onComplete(String folderPath) {
-                                if (getActivity() == null) return;
-                                getActivity().runOnUiThread(() -> {
-                                    progressText.setText("✅ Saved to: " + folderPath);
-                                    downloadProgress.setVisibility(GONE);
-                                    progressText.setVisibility(GONE);
-                                });
-                            }
-
-                            @Override
-                            public void onError(String error) {
-                                if (getActivity() == null) return;
-                                getActivity().runOnUiThread(() -> progressText.setText(error));
-                            }
-                        });
+        if (requestCode == REQUEST_CODE_PICK_FOLDER && resultCode == getActivity().RESULT_OK && data != null) {
+            Uri pickedFolderUri = data.getData();
+            requireContext().getContentResolver().takePersistableUriPermission(
+                    pickedFolderUri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            );
+            saveFolderUri(pickedFolderUri);
+            if (downloadUrl != null) {
+                startDownloadService(pickedFolderUri);
             }
         }
     }
 
+    private boolean isFolderValid(Uri folderUri) {
+        if (folderUri == null) return false;
+        boolean hasPermission = false;
+        for (UriPermission perm : requireContext().getContentResolver().getPersistedUriPermissions()) {
+            if (perm.getUri().equals(folderUri) && perm.isWritePermission()) {
+                hasPermission = true;
+                break;
+            }
+        }
+        if (!hasPermission) return false;
+        DocumentFile folder = DocumentFile.fromTreeUri(requireContext(), folderUri);
+        return folder != null && folder.exists() && folder.isDirectory();
+    }
 
+    private void saveFolderUri(Uri uri) {
+        SharedPreferences prefs = requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        prefs.edit().putString(KEY_FOLDER_URI, uri.toString()).apply();
+    }
 
+    private Uri getSavedFolderUri() {
+        SharedPreferences prefs = requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String uriStr = prefs.getString(KEY_FOLDER_URI, null);
+        return uriStr != null ? Uri.parse(uriStr) : null;
+    }
 
     private boolean checkPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            return Environment.isExternalStorageManager();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            return true;
         } else {
-            return ContextCompat.checkSelfPermission(getContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    == PackageManager.PERMISSION_GRANTED;
+            return ContextCompat.checkSelfPermission(getContext(), Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
         }
     }
 
     private void requestPermissions() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            try {
-                Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
-                intent.setData(Uri.parse("package:" + requireContext().getPackageName()));
-                startActivity(intent);
-            } catch (Exception e) {
-                Intent intent = new Intent(Settings.ACTION_MANAGE_ALL_FILES_ACCESS_PERMISSION);
-                startActivity(intent);
-            }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            pickFolder();
         } else {
-            ActivityCompat.requestPermissions(requireActivity(),
-                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
-                    REQUEST_PERMISSION);
+            ActivityCompat.requestPermissions(requireActivity(), new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUEST_PERMISSION);
         }
     }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        if (requestCode == REQUEST_PERMISSION) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                startDownload();
-            } else {
-                Toast.makeText(getContext(), "Permission denied for storage", Toast.LENGTH_SHORT).show();
-            }
+        if (requestCode == REQUEST_PERMISSION && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+            startDownload();
+        } else {
+            Toast.makeText(getContext(), "Permission denied for storage", Toast.LENGTH_SHORT).show();
         }
     }
 }
+
