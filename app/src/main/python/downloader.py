@@ -1,4 +1,5 @@
 import os
+import pathlib
 import yt_dlp as yt
 from java import jclass
 
@@ -27,13 +28,23 @@ def my_hook(d):
                 total_percent = int(
                     (stage_progress["video"] + stage_progress["audio"]) / 2
                 )
+                print(f"[Python] Progress: stage={current_stage} percent={percent} total_percent={total_percent}")
                 java_callback.update_progress(total_percent, str(total_percent))
 
             elif d['status'] == 'finished':
-                downloaded_files.append(d['filename'])
+                filename = d.get('filename', 'unknown')
+                print(f"[Python] Download finished: {filename}")
+                downloaded_files.append(filename)
     except Exception as e:
-        print(f"Progress hook error: {e}")
+        print(f"[Python] Progress hook error: {e}")
 
+def get_unique_filename(path):
+    path = pathlib.Path(path)
+    counter = 1
+    while path.exists():
+        path = path.with_name(f"{path.stem}_{counter}{path.suffix}")
+        counter += 1
+    return str(path)
 
 def download_video_with_progress(url, folder_path, callback):
     global downloaded_files, java_callback, current_stage, stage_progress
@@ -42,10 +53,9 @@ def download_video_with_progress(url, folder_path, callback):
     stage_progress = {"video": 0, "audio": 0}
 
     try:
+        java_callback.update_progress(0, "waiting")  # 👈 Tell Java we're waiting
 
-        # Use folder chosen by user
         out_folder = str(folder_path)
-        print(out_folder)
         os.makedirs(out_folder, exist_ok=True)
 
         # VIDEO
@@ -75,7 +85,12 @@ def download_video_with_progress(url, folder_path, callback):
             ydl.download([url])
 
         # MERGE
-        merged_output = os.path.join(out_folder, f"{video_title}.mp4")
+        java_callback.update_progress(0, "processing")  # 👈 Merging stage
+
+        merged_output = get_unique_filename(os.path.join(out_folder, f"{video_title}.mp4"))
+        if len(downloaded_files) < 2:
+            raise Exception("Not enough files downloaded to merge")
+
         command = (
             f'-i "{downloaded_files[0]}" '
             f'-i "{downloaded_files[1]}" '
@@ -83,18 +98,19 @@ def download_video_with_progress(url, folder_path, callback):
         )
 
         session = FFmpegKit.execute(command)
+        ret_code = session.getReturnCode()
 
-        if session.getReturnCode().isValueSuccess():
+        if ret_code.isValueSuccess():
             try:
                 os.remove(downloaded_files[0])
                 os.remove(downloaded_files[1])
             except Exception as e:
                 print(f"Cleanup error: {e}")
 
-            java_callback.update_progress(100, "100")
-            java_callback.completed(out_folder)
+            java_callback.completed(merged_output)
         else:
-            java_callback.error(f"❌ FFmpeg merge failed: {session.getFailStackTrace()}")
+            error_msg = session.getFailStackTrace()
+            java_callback.error(f"❌ FFmpeg merge failed: {error_msg}")
 
     except Exception as e:
         if java_callback:
