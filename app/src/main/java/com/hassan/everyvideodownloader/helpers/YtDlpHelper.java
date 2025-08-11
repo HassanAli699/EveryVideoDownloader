@@ -21,36 +21,15 @@ public class YtDlpHelper {
         }
     }
 
-    public void downloadVideo(String url, DownloadCallback callback) {
+    public void downloadVideo(String url, DownloadProgressCallback callback) {
         new Thread(() -> {
             try {
                 Python py = Python.getInstance();
                 PyObject downloader = py.getModule("downloader");
 
-                // Only pass URL — no ffmpeg path required now
-                PyObject result = downloader.callAttr("download_video", url);
+                // Pass Java callback object to Python directly
+                downloader.callAttr("download_video_with_progress", url, new ProgressBridge(callback));
 
-                if (result != null && !result.toString().startsWith("❌")) {
-                    String folderPath = result.toString();
-                    File folder = new File(folderPath);
-
-                    if (folder.exists() && folder.isDirectory()) {
-                        for (File file : folder.listFiles()) {
-                            if (file.isFile()) {
-                                MediaScannerConnection.scanFile(
-                                        context,
-                                        new String[]{file.getAbsolutePath()},
-                                        null,
-                                        null
-                                );
-                            }
-                        }
-                    }
-
-                    callback.onSuccess("✅ Downloaded to: " + folderPath);
-                } else {
-                    callback.onError(result != null ? result.toString() : "❌ Unknown error");
-                }
             } catch (Exception e) {
                 Log.e(TAG, "Python call failed", e);
                 callback.onError("❌ Error: " + e.getMessage());
@@ -58,8 +37,30 @@ public class YtDlpHelper {
         }).start();
     }
 
-    public interface DownloadCallback {
-        void onSuccess(String message);
+    public interface DownloadProgressCallback {
+        void onProgress(int percent, String statusText);
+        void onComplete(String folderPath);
         void onError(String error);
+    }
+
+    // Plain Java bridge class
+    public static class ProgressBridge {
+        private final DownloadProgressCallback callback;
+
+        public ProgressBridge(DownloadProgressCallback callback) {
+            this.callback = callback;
+        }
+
+        public void update_progress(int percent, String status) {
+            callback.onProgress(percent, status);
+        }
+
+        public void completed(String folderPath) {
+            callback.onComplete(folderPath);
+        }
+
+        public void error(String errorMsg) {
+            callback.onError(errorMsg);
+        }
     }
 }

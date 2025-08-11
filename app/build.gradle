@@ -53,5 +53,7 @@ dependencies {
     androidTestImplementation libs.espresso.core
     implementation libs.gradle
     implementation libs.ffmpeg.kit.full
+    implementation libs.glide
+    annotationProcessor libs.compiler
 }
 

@@ -1,0 +1,257 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    tools:context=".fragments.HomeFragment">
+
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="10dp"
+        android:background="@color/white">
+
+        <LinearLayout
+            android:id="@+id/apptitleLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:layout_marginStart="10dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintBottom_toTopOf="@id/outerCard"
+            tools:ignore="UseCompoundDrawables">
+
+            <ImageView
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@mipmap/ic_launcher"
+                android:contentDescription="@string/app_name" />
+
+            <TextView
+                android:id="@+id/appTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/poppins_bold"
+                android:letterSpacing=".5"
+                android:gravity="center_vertical"
+                android:text="EVD"
+                android:textColor="@color/black"
+                android:textSize="22sp"
+                android:layout_marginStart="4dp"/>
+        </LinearLayout>
+
+
+        <com.google.android.material.card.MaterialCardView
+            android:layout_marginTop="15dp"
+            android:id="@+id/outerCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            app:strokeColor="@color/transparent"
+            app:strokeWidth="0dp"
+            app:cardCornerRadius="35dp"
+
+            app:cardBackgroundColor="@color/backgroundColor"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/apptitleLayout">
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_marginBottom="20dp"
+                android:layout_height="wrap_content">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/cardView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:cardBackgroundColor="@color/cardColor"
+                    app:cardCornerRadius="35dp"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:strokeColor="@color/transparent"
+                    app:strokeWidth="0dp">
+
+                    <androidx.constraintlayout.widget.ConstraintLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_margin="10dp"
+                        android:orientation="vertical"
+                        android:padding="10dp">
+
+                        <TextView
+                            android:id="@+id/titleText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_bold"
+                            android:gravity="center"
+                            android:text="Every Video Downloader"
+                            android:textColor="@color/black"
+                            android:textSize="22sp"
+                            app:layout_constraintBottom_toTopOf="@id/titleDesc"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toTopOf="parent" />
+
+                        <TextView
+                            android:id="@+id/titleDesc"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/poppins_medium"
+                            android:gravity="center"
+                            android:text="Do Not Look Below! Explore My Every Video Downloader, A Free Solution To Quickly Download Videos Or Music With Just One Click"
+                            android:textColor="@color/backgroundColor"
+                            android:textSize="12sp"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toBottomOf="@id/titleText" />
+
+
+                        <EditText
+                            android:id="@+id/urlInput"
+                            style="@style/textStyle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="20dp"
+                            android:layout_marginBottom="30dp"
+                            android:drawableStart="@drawable/link"
+                            android:hint="@string/paste_video_url_here_hint"
+                            android:inputType="textUri"
+                            android:padding="15dp"
+                            app:layout_constraintBottom_toBottomOf="parent"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toBottomOf="@+id/titleDesc" />
+
+
+                    </androidx.constraintlayout.widget.ConstraintLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <Button
+                    android:id="@+id/downloadBtn"
+                    android:layout_width="200dp"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:layout_marginBottom="-25dp"
+                    android:backgroundTint="@color/primaryRed"
+                    android:fontFamily="@font/poppins_bold"
+                    android:padding="10dp"
+                    android:text="@string/download_btn_txt"
+                    android:textColor="@color/white"
+                    android:textSize="18sp"
+                    app:layout_constraintBottom_toBottomOf="@+id/cardView"
+                    app:layout_constraintEnd_toEndOf="parent"
+                    app:layout_constraintStart_toStartOf="parent" />
+
+                <TextView
+                    android:id="@+id/supported_txt"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:layout_constraintTop_toBottomOf="@id/downloadBtn"
+                    android:text="Supported Platforms"
+                    android:gravity="center"
+                    android:textSize="14sp"
+                    android:fontFamily="@font/poppins_medium"
+                    android:layout_marginTop="10dp"
+                    android:textColor="@color/white"
+                    />
+
+
+                <LinearLayout
+                    android:id="@+id/supported_platforms"
+                    app:layout_constraintTop_toBottomOf="@+id/supported_txt"
+                    android:layout_width="match_parent"
+                    android:orientation="horizontal"
+                    android:gravity="center"
+                    android:layout_marginTop="5dp"
+                    android:layout_height="wrap_content">
+
+                    <ImageView
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_marginHorizontal="10dp"
+                        android:src="@drawable/facebook"
+                        />
+
+                    <ImageView
+                        android:layout_width="50dp"
+                        android:layout_height="40dp"
+                        android:layout_marginHorizontal="10dp"
+                        android:src="@drawable/pintrest"
+                        />
+                    <ImageView
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+
+                        android:layout_marginHorizontal="10dp"
+                        android:src="@drawable/youtube"
+                        />
+                    <ImageView
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_marginHorizontal="10dp"
+                        android:src="@drawable/instagram"
+                        />
+
+
+
+                </LinearLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:layout_constraintTop_toBottomOf="@id/supported_platforms"
+                    android:text="My Downloader is not specific for these platform you can try other sites if you want. If you have a specific site request contact me hassanali669a@gmail.com."
+                    android:gravity="center"
+                    android:textSize="12sp"
+                    android:layout_marginHorizontal="20dp"
+                    android:layout_marginBottom="20dp"
+                    android:fontFamily="@font/poppins_medium"
+                    android:layout_marginTop="10dp"
+                    android:textColor="#959292"
+                    />
+
+
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+
+        </com.google.android.material.card.MaterialCardView>
+
+        <ProgressBar
+            android:id="@+id/downloadProgress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="15dp"
+            android:max="100"
+            android:progress="90"
+            android:indeterminate="false"
+            android:progressDrawable="@drawable/progress_bar_download"
+            android:visibility="gone"
+            android:layout_marginTop="20dp"
+            android:layout_marginBottom="10dp"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/outerCard" />
+
+
+        <TextView
+            android:id="@+id/progressText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="0% Downloaded"
+            android:textColor="@color/black"
+            android:fontFamily="@font/poppins_bold"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@+id/downloadProgress" />
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</FrameLayout>
