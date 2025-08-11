@@ -1,7 +1,13 @@
 package com.hassan.everyvideodownloader.helpers;
 
+import static androidx.core.app.ActivityCompat.startActivityForResult;
+
+import static com.hassan.everyvideodownloader.utils.FileUtils.getPathFromUri;
+
 import android.content.Context;
+import android.content.Intent;
 import android.media.MediaScannerConnection;
+import android.net.Uri;
 import android.util.Log;
 
 import com.chaquo.python.PyObject;
@@ -21,15 +27,13 @@ public class YtDlpHelper {
         }
     }
 
-    public void downloadVideo(String url, DownloadProgressCallback callback) {
+    public void downloadVideoWithFolder(String url, String folderUri, DownloadProgressCallback callback) {
         new Thread(() -> {
             try {
                 Python py = Python.getInstance();
                 PyObject downloader = py.getModule("downloader");
-
-                // Pass Java callback object to Python directly
-                downloader.callAttr("download_video_with_progress", url, new ProgressBridge(callback));
-
+                String folderPath = getPathFromUri(context, Uri.parse(folderUri));
+                downloader.callAttr("download_video_with_progress", url, folderPath, new ProgressBridge(callback));
             } catch (Exception e) {
                 Log.e(TAG, "Python call failed", e);
                 callback.onError("❌ Error: " + e.getMessage());
@@ -63,4 +67,5 @@ public class YtDlpHelper {
             callback.onError(errorMsg);
         }
     }
+
 }
