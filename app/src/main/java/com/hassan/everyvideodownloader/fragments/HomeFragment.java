@@ -47,6 +47,9 @@ public class HomeFragment extends Fragment {
     private ProgressBar downloadProgress;
     private TextView progressText;
     private YtDlpHelper ytDlpHelper;
+    private static final int REQUEST_CODE_PICK_FOLDER = 2001;
+    private String downloadUrl;
+
 
     public HomeFragment() {
         // Required empty public constructor
@@ -85,47 +88,64 @@ public class HomeFragment extends Fragment {
             Toast.makeText(getContext(), "Enter a valid URL", Toast.LENGTH_SHORT).show();
             return;
         }
-
-        ytDlpHelper.downloadVideo(url, new YtDlpHelper.DownloadProgressCallback() {
-            @Override
-            public void onProgress(int percent, String statusText) {
-                if (getActivity() == null) return;
-                getActivity().runOnUiThread(() -> {
-                    downloadProgress.setVisibility(VISIBLE);
-                    progressText.setVisibility(VISIBLE);
-
-                    int currentProgress = downloadProgress.getProgress();
-                    int targetProgress = percent;
-
-                    ObjectAnimator animation = ObjectAnimator.ofInt(downloadProgress, "progress",
-                            currentProgress, targetProgress);
-                    animation.setDuration(300);
-                    animation.setInterpolator(new DecelerateInterpolator());
-                    animation.start();
-
-                    progressText.setText(statusText);
-                });
-            }
-
-            @SuppressLint("SetTextI18n")
-            @Override
-            public void onComplete(String folderPath) {
-                if (getActivity() == null) return;
-                getActivity().runOnUiThread(() -> {
-                    progressText.setText("✅ Downloaded to: " + folderPath);
-                    downloadProgress.setVisibility(GONE);
-                    progressText.setVisibility(GONE);
-                   // loadDownloadedVideos(); // refresh list after download
-                });
-            }
-
-            @Override
-            public void onError(String error) {
-                if (getActivity() == null) return;
-                getActivity().runOnUiThread(() -> progressText.setText(error));
-            }
-        });
+        this.downloadUrl = url; // Store URL until folder picked
+        pickFolder();
     }
+
+    private void pickFolder() {
+        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION
+                | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        startActivityForResult(intent, REQUEST_CODE_PICK_FOLDER);
+    }
+
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_PICK_FOLDER && resultCode == getActivity().RESULT_OK) {
+            if (data != null) {
+                Uri pickedFolderUri = data.getData();
+                requireContext().getContentResolver().takePersistableUriPermission(
+                        pickedFolderUri,
+                        Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                );
+
+                ytDlpHelper.downloadVideoWithFolder(downloadUrl, pickedFolderUri.toString(),
+                        new YtDlpHelper.DownloadProgressCallback() {
+                            @Override
+                            public void onProgress(int percent, String statusText) {
+                                if (getActivity() == null) return;
+                                getActivity().runOnUiThread(() -> {
+                                    downloadProgress.setVisibility(VISIBLE);
+                                    progressText.setVisibility(VISIBLE);
+                                    downloadProgress.setProgress(percent);
+                                    progressText.setText(statusText + "% Downloaded");
+                                });
+                            }
+
+                            @Override
+                            public void onComplete(String folderPath) {
+                                if (getActivity() == null) return;
+                                getActivity().runOnUiThread(() -> {
+                                    progressText.setText("✅ Saved to: " + folderPath);
+                                    downloadProgress.setVisibility(GONE);
+                                    progressText.setVisibility(GONE);
+                                });
+                            }
+
+                            @Override
+                            public void onError(String error) {
+                                if (getActivity() == null) return;
+                                getActivity().runOnUiThread(() -> progressText.setText(error));
+                            }
+                        });
+            }
+        }
+    }
+
+
+
 
     private boolean checkPermissions() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
