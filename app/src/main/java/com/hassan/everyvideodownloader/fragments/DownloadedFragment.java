@@ -53,12 +53,16 @@ public class DownloadedFragment extends Fragment {
                     videoFiles.add(f);
                 }
             }
+
+            // Sort by latest modified first
+            videoFiles.sort((f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
         }
 
         VideoListAdapter adapter = new VideoListAdapter(getContext(), videoFiles);
         videosRecycler.setLayoutManager(new LinearLayoutManager(getContext()));
         videosRecycler.setAdapter(adapter);
     }
+
 
     @Override
     public void onResume() {
