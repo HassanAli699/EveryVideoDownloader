@@ -26,9 +26,9 @@ import java.util.List;
 public class VideoListAdapter extends RecyclerView.Adapter<VideoListAdapter.ViewHolder> {
 
     private final Context context;
-    private final List<File> videos;
+    private final List<Uri> videos;
 
-    public VideoListAdapter(Context context, List<File> videos) {
+    public VideoListAdapter(Context context, List<Uri> videos) {
         this.context = context;
         this.videos = videos;
     }
@@ -42,24 +42,25 @@ public class VideoListAdapter extends RecyclerView.Adapter<VideoListAdapter.View
 
     @Override
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        File video = videos.get(position);
-        holder.title.setText(video.getName());
-        File file = new File(video.getAbsolutePath());
-        // Create thumbnail
+        Uri videoUri = videos.get(position);
+
+        // Get filename
+        String fileName = videoUri.getLastPathSegment();
+        if (fileName != null && fileName.contains("/")) {
+            fileName = fileName.substring(fileName.lastIndexOf("/") + 1);
+        }
+        holder.title.setText(fileName != null ? fileName : "Video");
+
+        // Glide thumbnail from SAF Uri
         Glide.with(context)
-                .load(file)
-                .thumbnail(.5f)
+                .load(videoUri)
+                .thumbnail(0.5f)
                 .into(holder.thumbnail);
 
-
+        // Play video when clicked
         holder.itemView.setOnClickListener(v -> {
-            Uri uri = FileProvider.getUriForFile(
-                    context,
-                    "com.hassan.everyvideodownloader.fileprovider",
-                    video
-            );
             Intent intent = new Intent(Intent.ACTION_VIEW);
-            intent.setDataAndType(uri, "video/*");
+            intent.setDataAndType(videoUri, "video/*");
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
             context.startActivity(intent);
         });
@@ -81,3 +82,4 @@ public class VideoListAdapter extends RecyclerView.Adapter<VideoListAdapter.View
         }
     }
 }
+
