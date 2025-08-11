@@ -1,12 +1,19 @@
 package com.hassan.everyvideodownloader.fragments;
 
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageView;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
+import androidx.documentfile.provider.DocumentFile;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -16,11 +23,16 @@ import com.hassan.everyvideodownloader.adapters.VideoListAdapter;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class DownloadedFragment extends Fragment {
 
     private RecyclerView videosRecycler;
+    private ImageView refreshBtn;
+    private static final String PREFS_NAME = "every_video_downloader_prefs";
+    private static final String KEY_FOLDER_URI = "selected_folder_uri";
 
     public DownloadedFragment() {
         // Required empty public constructor
@@ -32,36 +44,53 @@ public class DownloadedFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_downloaded, container, false);
 
         videosRecycler = view.findViewById(R.id.videosRecycler);
+        refreshBtn = view.findViewById(R.id.refreshBtn);
+
+        refreshBtn.setOnClickListener(v -> {
+            Log.d("DownloadedFragment", "Refresh button clicked");
+            loadDownloadedVideos();
+        });
 
         loadDownloadedVideos();
 
         return view;
     }
 
+
     private void loadDownloadedVideos() {
-        File folder = new File(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_DOWNLOADS), "Every Downloader");
-
-        if (!folder.exists()) folder.mkdirs();
-
-        File[] files = folder.listFiles();
-        List<File> videoFiles = new ArrayList<>();
-
-        if (files != null) {
-            for (File f : files) {
-                if (f.isFile() && f.getName().endsWith(".mp4")) {
-                    videoFiles.add(f);
-                }
-            }
-
-            // Sort by latest modified first
-            videoFiles.sort((f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
+        Uri savedFolderUri = getSavedFolderUri();
+        if (savedFolderUri == null) {
+            videosRecycler.setAdapter(null);
+            return;
         }
 
-        VideoListAdapter adapter = new VideoListAdapter(getContext(), videoFiles);
+        List<Uri> videoUris = getVideoUrisFromUri(savedFolderUri);
+        VideoListAdapter adapter = new VideoListAdapter(getContext(), videoUris);
         videosRecycler.setLayoutManager(new LinearLayoutManager(getContext()));
         videosRecycler.setAdapter(adapter);
     }
+
+
+    private Uri getSavedFolderUri() {
+        SharedPreferences prefs = requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        String uriStr = prefs.getString(KEY_FOLDER_URI, null);
+        return uriStr != null ? Uri.parse(uriStr) : null;
+    }
+
+
+    private List<Uri> getVideoUrisFromUri(Uri folderUri) {
+        List<Uri> videoUris = new ArrayList<>();
+        DocumentFile pickedFolder = DocumentFile.fromTreeUri(requireContext(), folderUri);
+        if (pickedFolder != null && pickedFolder.isDirectory()) {
+            for (DocumentFile file : pickedFolder.listFiles()) {
+                if (file.isFile() && file.getName() != null && file.getName().endsWith(".mp4")) {
+                    videoUris.add(file.getUri());
+                }
+            }
+        }
+        return videoUris;
+    }
+
 
 
     @Override
