@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
+import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -15,11 +16,13 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.documentfile.provider.DocumentFile;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.hassan.everyvideodownloader.R;
 import com.hassan.everyvideodownloader.adapters.VideoListAdapter;
+import com.hassan.everyvideodownloader.utils.Utils;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -30,7 +33,6 @@ import java.util.Set;
 public class DownloadedFragment extends Fragment {
 
     private RecyclerView videosRecycler;
-    private ImageView refreshBtn;
     private static final String PREFS_NAME = "every_video_downloader_prefs";
     private static final String KEY_FOLDER_URI = "selected_folder_uri";
 
@@ -44,11 +46,17 @@ public class DownloadedFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_downloaded, container, false);
 
         videosRecycler = view.findViewById(R.id.videosRecycler);
-        refreshBtn = view.findViewById(R.id.refreshBtn);
+        ImageView refreshBtn = view.findViewById(R.id.refreshBtn);
 
         refreshBtn.setOnClickListener(v -> {
             Log.d("DownloadedFragment", "Refresh button clicked");
             loadDownloadedVideos();
+            Utils.showAnimatedToast(
+                    getActivity(),
+                    "Successfully Refreshed",
+                    R.drawable.check_mark,
+                    Utils.ToastDuration.SHORT
+            );
         });
 
         loadDownloadedVideos();
@@ -66,7 +74,11 @@ public class DownloadedFragment extends Fragment {
 
         List<Uri> videoUris = getVideoUrisFromUri(savedFolderUri);
         VideoListAdapter adapter = new VideoListAdapter(getContext(), videoUris);
-        videosRecycler.setLayoutManager(new LinearLayoutManager(getContext()));
+
+        DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
+        float dpWidth = displayMetrics.widthPixels / displayMetrics.density;
+        int numOfColumns = (int) (dpWidth / 180); // 180dp per item
+        videosRecycler.setLayoutManager(new GridLayoutManager(getContext(), numOfColumns));
         videosRecycler.setAdapter(adapter);
     }
 

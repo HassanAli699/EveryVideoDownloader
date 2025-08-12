@@ -44,7 +44,7 @@
         </provider>
 
         <service
-            android:name=".utils.DownloadService"
+            android:name=".services.DownloadService"
             android:exported="false" />
 
     </application>

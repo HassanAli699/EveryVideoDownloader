@@ -1,20 +1,17 @@
 package com.hassan.everyvideodownloader.helpers;
 
-import static androidx.core.app.ActivityCompat.startActivityForResult;
 
-import static com.hassan.everyvideodownloader.utils.FileUtils.getPathFromUri;
+import static android.app.PendingIntent.getActivity;
 
 import android.content.Context;
 import android.content.Intent;
-import android.media.MediaScannerConnection;
 import android.net.Uri;
-import android.util.Log;
-
 import androidx.documentfile.provider.DocumentFile;
-
 import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
+import com.hassan.everyvideodownloader.R;
+import com.hassan.everyvideodownloader.utils.Utils;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -86,6 +83,7 @@ public class YtDlpHelper {
 
                                     // Delete temp folder
                                     deleteRecursive(tempFolder);
+
 
                                     callback.onComplete(newFile.getUri().toString());
 

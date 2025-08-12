@@ -3,37 +3,49 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="100dp"
+    android:layout_height="250dp"
     android:layout_margin="4dp"
     android:backgroundTint="@color/backgroundColor"
     android:background="@drawable/item_bg">
 
     <com.google.android.material.imageview.ShapeableImageView
-        app:shapeAppearanceOverlay="@style/LeftRoundedImage"
         android:id="@+id/videoThumbnail"
-        android:layout_width="130dp"
-        android:layout_height="match_parent"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
         android:contentDescription="Thumbnail"
         android:scaleType="centerCrop"
-
         android:src="@drawable/ghost"
+
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        app:layout_constraintTop_toTopOf="parent"
+        app:shapeAppearanceOverlay="@style/LeftRoundedImage" />
 
-    <TextView
-        android:id="@+id/videoTitle"
-        android:layout_width="150dp"
-        android:layout_height="wrap_content"
-        android:fontFamily="@font/poppins_medium"
-        android:gravity="start"
+    <ImageView
+        android:layout_width="50dp"
+        android:layout_height="50dp"
+        android:src="@drawable/video_play_btn"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/videoThumbnail"
+        app:tint="@color/white" />
 
-        android:padding="10dp"
-        android:layout_marginEnd="5dp"
-        android:text="Video Title Here"
-        android:textColor="@color/white"
-        android:textSize="12sp"
-        app:layout_constraintStart_toEndOf="@+id/videoThumbnail"
-        app:layout_constraintTop_toTopOf="parent" />
+<!--    <TextView-->
+<!--        android:id="@+id/videoTitle"-->
+<!--        android:layout_width="150dp"-->
+<!--        android:layout_height="wrap_content"-->
+<!--        android:fontFamily="@font/poppins_medium"-->
+<!--        android:gravity="start"-->
+
+<!--        android:padding="10dp"-->
+<!--        android:layout_marginEnd="5dp"-->
+<!--        android:text="Video Title Here"-->
+<!--        android:textColor="@color/white"-->
+<!--        android:textSize="12sp"-->
+<!--        app:layout_constraintStart_toEndOf="@+id/videoThumbnail"-->
+<!--        app:layout_constraintTop_toTopOf="parent" />-->
 
 <!--    <TextView-->
 <!--        android:id="@+id/videoTime"-->

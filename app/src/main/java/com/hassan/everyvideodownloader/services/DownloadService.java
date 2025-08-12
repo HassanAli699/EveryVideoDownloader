@@ -1,4 +1,4 @@
-package com.hassan.everyvideodownloader.utils;
+package com.hassan.everyvideodownloader.services;
 
 import android.annotation.SuppressLint;
 import android.app.Notification;
@@ -17,6 +17,7 @@ import androidx.core.app.NotificationCompat;
 
 import com.hassan.everyvideodownloader.R;
 import com.hassan.everyvideodownloader.helpers.YtDlpHelper;
+import com.hassan.everyvideodownloader.utils.Utils;
 
 public class DownloadService extends Service {
 
@@ -26,7 +27,6 @@ public class DownloadService extends Service {
     public static final String CHANNEL_ID = "download_channel";
 
     private final IBinder binder = new LocalBinder();
-    private YtDlpHelper ytDlpHelper;
 
     // Keep last state for UI restore
     private int lastProgress = -1; // -1 = indeterminate
@@ -49,7 +49,7 @@ public class DownloadService extends Service {
         createNotificationChannel(); // ✅ Ensure channel exists first
         startForeground(1, buildNotification("Preparing download..."));
 
-        ytDlpHelper = new YtDlpHelper(this);
+        YtDlpHelper ytDlpHelper = new YtDlpHelper(this);
         ytDlpHelper.downloadVideoWithFolder(url, folderUri, new YtDlpHelper.DownloadProgressCallback() {
             @Override
             public void onProgress(int percent, String statusText) {
@@ -65,6 +65,7 @@ public class DownloadService extends Service {
             @Override
             public void onComplete(String folderPath) {
                 updateState(100, "Download finished");
+
 
                 // Stop foreground but keep the notification temporarily
                 stopForeground(false);

@@ -22,6 +22,7 @@
         android:textColor="@color/black"
         android:textSize="18sp"
 
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
@@ -29,20 +30,22 @@
         android:id="@+id/refreshBtn"
         android:layout_width="30dp"
         android:layout_height="25dp"
-        android:src="@drawable/refresh"
         android:layout_marginEnd="20dp"
-        app:layout_constraintBottom_toTopOf="@+id/videosRecycler"
+        android:src="@drawable/refresh"
+        app:layout_constraintBottom_toBottomOf="@+id/titleOfDownloaded"
         app:layout_constraintEnd_toEndOf="@id/titleOfDownloaded"
         app:layout_constraintTop_toTopOf="parent" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/videosRecycler"
         android:layout_width="match_parent"
+        android:layout_marginHorizontal="20dp"
+
         android:layout_height="wrap_content"
-        android:padding="8dp"
-        app:layout_constraintTop_toBottomOf="@id/titleOfDownloaded"
-        app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
+        android:paddingVertical="15dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/titleOfDownloaded"
         tools:listitem="@layout/item_video" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

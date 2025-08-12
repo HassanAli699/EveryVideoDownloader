@@ -54,8 +54,8 @@
 
             <ImageView
                 android:id="@+id/modifyFoldersBtn"
-                android:layout_width="30dp"
-                android:layout_height="30dp"
+                android:layout_width="25dp"
+                android:layout_height="25dp"
                 android:layout_marginEnd="10dp"
                 android:foregroundGravity="right"
                 android:src="@drawable/folder"
@@ -166,8 +166,8 @@
 
                         <ImageView
                             android:id="@+id/pasteLink"
-                            android:layout_width="40dp"
-                            android:layout_height="40dp"
+                            android:layout_width="35dp"
+                            android:layout_height="35dp"
                             android:layout_marginEnd="15dp"
                             android:src="@drawable/copy"
                             app:layout_constraintBottom_toBottomOf="@+id/urlInput"

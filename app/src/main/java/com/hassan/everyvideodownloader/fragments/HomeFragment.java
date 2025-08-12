@@ -4,7 +4,7 @@ import static android.view.View.GONE;
 import static android.view.View.VISIBLE;
 
 import android.Manifest;
-import android.animation.ObjectAnimator;
+import android.annotation.SuppressLint;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipboardManager;
@@ -17,13 +17,10 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
-import android.os.Environment;
-import android.provider.Settings;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.DecelerateInterpolator;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
@@ -36,10 +33,12 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.documentfile.provider.DocumentFile;
 import androidx.fragment.app.Fragment;
-
 import com.hassan.everyvideodownloader.R;
-import com.hassan.everyvideodownloader.helpers.YtDlpHelper;
-import com.hassan.everyvideodownloader.utils.DownloadService;
+import com.hassan.everyvideodownloader.services.DownloadService;
+import com.hassan.everyvideodownloader.utils.Utils;
+
+import java.net.HttpURLConnection;
+import java.net.URL;
 
 
 public class HomeFragment extends Fragment {
@@ -58,6 +57,7 @@ public class HomeFragment extends Fragment {
     private String downloadUrl;
 
     private final BroadcastReceiver downloadReceiver = new BroadcastReceiver() {
+        @SuppressLint("SetTextI18n")
         @Override
         public void onReceive(Context context, Intent intent) {
             String action = intent.getAction();
@@ -105,6 +105,47 @@ public class HomeFragment extends Fragment {
         return view;
     }
 
+    private String resolveFinalUrl(String shortUrl) {
+        try {
+            String currentUrl = shortUrl;
+            int maxRedirects = 5; // prevent infinite loops
+
+            for (int i = 0; i < maxRedirects; i++) {
+                HttpURLConnection connection = (HttpURLConnection) new URL(currentUrl).openConnection();
+                connection.setInstanceFollowRedirects(false);
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(5000);
+                connection.setReadTimeout(5000);
+                connection.connect();
+
+                int code = connection.getResponseCode();
+                if (code == HttpURLConnection.HTTP_MOVED_PERM ||
+                        code == HttpURLConnection.HTTP_MOVED_TEMP ||
+                        code == 307 || code == 308) {
+
+                    String location = connection.getHeaderField("Location");
+                    if (location != null && !location.isEmpty()) {
+                        // Handle relative redirects
+                        if (!location.startsWith("http")) {
+                            URL base = new URL(currentUrl);
+                            location = new URL(base, location).toString();
+                        }
+                        currentUrl = location;
+                    } else {
+                        break;
+                    }
+                } else {
+                    // No more redirect
+                    break;
+                }
+            }
+            return currentUrl;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return shortUrl;
+        }
+    }
+
     private void setupPasteButton() {
         pasteLinkBtn.setOnClickListener(v -> {
             if ("clear".equals(pasteLinkBtn.getTag())) {
@@ -146,18 +187,44 @@ public class HomeFragment extends Fragment {
     }
 
     private void startDownload() {
-        downloadUrl = urlInput.getText().toString().trim();
-        if (downloadUrl.isEmpty()) {
-            Toast.makeText(getContext(), "Enter a valid URL", Toast.LENGTH_SHORT).show();
+        String inputUrl = urlInput.getText().toString().trim();
+        if (inputUrl.isEmpty()) {
+            Utils.showAnimatedToast(
+                    getActivity(),
+                    "Please Enter A Valid URL",
+                    R.drawable.warning,
+                    Utils.ToastDuration.SHORT
+            );
             return;
         }
 
+        // 🔹 If it's a Pinterest short link, expand it first
+        if (inputUrl.contains("pin.it/")) {
+            new Thread(() -> {
+                String expandedUrl = resolveFinalUrl(inputUrl);
+                Log.d("HomeFragment", "Expanded URL OF PINTREST: " + expandedUrl);
+                requireActivity().runOnUiThread(() -> {
+                    downloadUrl = expandedUrl;
+                    proceedWithDownload();
+                });
+            }).start();
+        } else {
+            downloadUrl = inputUrl;
+            proceedWithDownload();
+        }
+    }
+
+    private void proceedWithDownload() {
         Uri savedFolder = getSavedFolderUri();
         if (isFolderValid(savedFolder)) {
-            Log.d("HomeFragment", "Valid folder found, starting download");
             startDownloadService(savedFolder);
         } else {
-            Toast.makeText(getContext(), "Please choose a valid download folder", Toast.LENGTH_SHORT).show();
+            Utils.showAnimatedToast(
+                    getActivity(),
+                    "Please choose a valid download folder",
+                    R.drawable.warning,
+                    Utils.ToastDuration.SHORT
+            );
             pickFolder();
         }
     }
@@ -258,7 +325,12 @@ public class HomeFragment extends Fragment {
         if (requestCode == REQUEST_PERMISSION && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
             startDownload();
         } else {
-            Toast.makeText(getContext(), "Permission denied for storage", Toast.LENGTH_SHORT).show();
+            Utils.showAnimatedToast(
+                    getActivity(),
+                    "Permission denied for storage",
+                    R.drawable.alert_error,
+                    Utils.ToastDuration.SHORT
+            );
         }
     }
 }
