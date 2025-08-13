@@ -46,6 +46,28 @@ def get_unique_filename(path):
         counter += 1
     return str(path)
 
+def format_user_friendly_error(e):
+    """
+    Convert raw errors into short, clear explanations for the user.
+    """
+    err_str = str(e).lower()
+
+    # Network-related errors
+    if "unable to download video" in err_str or "http error" in err_str:
+        return "Network error — Check your internet connection or try again later."
+    elif "url" in err_str and "invalid" in err_str:
+        return "Invalid link — Please check if the video URL is correct."
+    elif "video unavailable" in err_str or "private" in err_str:
+        return "This video is private or unavailable."
+    elif "no such file" in err_str or "file not found" in err_str:
+        return "File not found — The video/audio file could not be located."
+    elif "ffmpeg" in err_str:
+        return "Video processing failed — FFmpeg could not merge the files."
+    elif "permission" in err_str:
+        return "Storage permission error — Please allow storage access."
+    else:
+        return "Unexpected error — Please try again."
+
 def download_video_with_progress(url, folder_path, callback):
     global downloaded_files, java_callback, current_stage, stage_progress
     downloaded_files = []
@@ -53,7 +75,7 @@ def download_video_with_progress(url, folder_path, callback):
     stage_progress = {"video": 0, "audio": 0}
 
     try:
-        java_callback.update_progress(0, "waiting")  # 👈 Tell Java we're waiting
+        java_callback.update_progress(0, "Waiting For Response...")
 
         out_folder = str(folder_path)
         os.makedirs(out_folder, exist_ok=True)
@@ -63,13 +85,14 @@ def download_video_with_progress(url, folder_path, callback):
         current_stage = "video"
         with yt.YoutubeDL({
             "outtmpl": video_tmpl,
-            "format": "bv*",
+            "format": "bv*+ba/bv*/best",  # will try bestvideo+audio, else fallback to best
             "ignoreerrors": True,
             "cachedir": False,
             "progress_hooks": [my_hook]
         }) as ydl:
             info_dict = ydl.extract_info(url, download=False)
             video_title = str(info_dict.get('title', 'video'))
+            video_ext = info_dict.get('ext', 'mp4')
             ydl.download([url])
 
         # AUDIO
@@ -84,34 +107,47 @@ def download_video_with_progress(url, folder_path, callback):
         }) as ydl:
             ydl.download([url])
 
-        # MERGE
-        java_callback.update_progress(0, "processing")  # 👈 Merging stage
+        java_callback.update_progress(90, "Processing...")
 
-        merged_output = get_unique_filename(os.path.join(out_folder, f"{video_title}.mp4"))
-        if len(downloaded_files) < 2:
-            raise Exception("Not enough files downloaded to merge")
+        # --- Decision logic ---
+        if len(downloaded_files) == 1:
+            # Only one file — check if it’s already a video
+            single_file = downloaded_files[0]
+            if single_file.lower().endswith(('.mp4', '.mov', '.mkv', '.avi', '.webm')):
+                java_callback.update_progress(100, "Making Video Upload Ready Wait...")
+                java_callback.completed(single_file)
+                return
+            else:
+                raise Exception("Only one file downloaded but it’s not a supported video format")
 
-        command = (
-            f'-i "{downloaded_files[0]}" '
-            f'-i "{downloaded_files[1]}" '
-            f'-c:v copy -c:a aac -strict experimental "{merged_output}"'
-        )
+        elif len(downloaded_files) >= 2:
+            # Merge video and audio
+            merged_output = get_unique_filename(os.path.join(out_folder, f"{video_title}.{video_ext}"))
+            command = (
+                f'-i "{downloaded_files[0]}" '
+                f'-i "{downloaded_files[1]}" '
+                f'-c:v copy -c:a aac -strict experimental "{merged_output}"'
+            )
 
-        session = FFmpegKit.execute(command)
-        ret_code = session.getReturnCode()
+            session = FFmpegKit.execute(command)
+            ret_code = session.getReturnCode()
 
-        if ret_code.isValueSuccess():
-            try:
-                os.remove(downloaded_files[0])
-                os.remove(downloaded_files[1])
-            except Exception as e:
-                print(f"Cleanup error: {e}")
+            if ret_code.isValueSuccess():
+                try:
+                    os.remove(downloaded_files[0])
+                    os.remove(downloaded_files[1])
+                except Exception as cleanup_err:
+                    print(f"Cleanup error: {cleanup_err}")
+                java_callback.update_progress(100, "Making Video Upload Ready Wait...")
+                java_callback.completed(merged_output)
+                return
+            else:
+                raise Exception(session.getFailStackTrace())
 
-            java_callback.completed(merged_output)
         else:
-            error_msg = session.getFailStackTrace()
-            java_callback.error(f"❌ FFmpeg merge failed: {error_msg}")
+            raise Exception("No files downloaded")
 
     except Exception as e:
+        print(f"[Python] Full error: {e}")
         if java_callback:
-            java_callback.error(f"❌ Error: {str(e)}")
+            java_callback.error(format_user_friendly_error(e))

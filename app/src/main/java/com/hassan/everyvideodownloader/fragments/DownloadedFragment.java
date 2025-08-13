@@ -4,31 +4,22 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
-
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.documentfile.provider.DocumentFile;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
-import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.hassan.everyvideodownloader.R;
 import com.hassan.everyvideodownloader.adapters.VideoListAdapter;
 import com.hassan.everyvideodownloader.utils.Utils;
-
-import java.io.File;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 
 public class DownloadedFragment extends Fragment {
 
@@ -58,6 +49,8 @@ public class DownloadedFragment extends Fragment {
                     Utils.ToastDuration.SHORT
             );
         });
+
+
 
         loadDownloadedVideos();
 
@@ -94,15 +87,24 @@ public class DownloadedFragment extends Fragment {
         List<Uri> videoUris = new ArrayList<>();
         DocumentFile pickedFolder = DocumentFile.fromTreeUri(requireContext(), folderUri);
         if (pickedFolder != null && pickedFolder.isDirectory()) {
+            List<DocumentFile> mp4Files = new ArrayList<>();
+
             for (DocumentFile file : pickedFolder.listFiles()) {
                 if (file.isFile() && file.getName() != null && file.getName().endsWith(".mp4")) {
-                    videoUris.add(file.getUri());
+                    mp4Files.add(file);
                 }
+            }
+
+            // Sort by lastModified in descending order (latest first)
+            mp4Files.sort((f1, f2) -> Long.compare(f2.lastModified(), f1.lastModified()));
+
+            // Convert to URIs
+            for (DocumentFile file : mp4Files) {
+                videoUris.add(file.getUri());
             }
         }
         return videoUris;
     }
-
 
 
     @Override

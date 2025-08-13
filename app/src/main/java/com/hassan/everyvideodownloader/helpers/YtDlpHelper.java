@@ -6,12 +6,16 @@ import static android.app.PendingIntent.getActivity;
 import android.content.Context;
 import android.content.Intent;
 import android.net.Uri;
+import android.util.Log;
+
 import androidx.documentfile.provider.DocumentFile;
+
+import com.antonkarpenko.ffmpegkit.FFmpegKit;
+import com.antonkarpenko.ffmpegkit.FFprobeKit;
+import com.antonkarpenko.ffmpegkit.MediaInformationSession;
 import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
-import com.hassan.everyvideodownloader.R;
-import com.hassan.everyvideodownloader.utils.Utils;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -28,7 +32,6 @@ public class YtDlpHelper {
             Python.start(new AndroidPlatform(context));
         }
     }
-
 
     public void downloadVideoWithFolder(String url, Uri folderUri, DownloadProgressCallback callback) {
         new Thread(() -> {
@@ -60,35 +63,9 @@ public class YtDlpHelper {
                             public void onComplete(String mergedFilePath) {
                                 try {
                                     File mergedFile = new File(mergedFilePath);
-                                    DocumentFile pickedFolder = DocumentFile.fromTreeUri(context, folderUri);
-                                    if (pickedFolder == null || !pickedFolder.canWrite()) {
-                                        callback.onError("❌ Selected folder is not writable");
-                                        return;
-                                    }
-
-                                    DocumentFile newFile = pickedFolder.createFile("video/mp4", mergedFile.getName());
-                                    if (newFile == null) {
-                                        callback.onError("❌ Failed to create file in folder");
-                                        return;
-                                    }
-
-                                    try (InputStream in = new FileInputStream(mergedFile);
-                                         OutputStream out = context.getContentResolver().openOutputStream(newFile.getUri())) {
-                                        byte[] buffer = new byte[8192];
-                                        int len;
-                                        while ((len = in.read(buffer)) != -1) {
-                                            out.write(buffer, 0, len);
-                                        }
-                                    }
-
-                                    // Delete temp folder
-                                    deleteRecursive(tempFolder);
-
-
-                                    callback.onComplete(newFile.getUri().toString());
-
+                                    convertToTikTokFormatAndSave(mergedFile, folderUri, callback);
                                 } catch (Exception e) {
-                                    callback.onError("❌ Error moving file: " + e.getMessage());
+                                    callback.onError("❌ Error converting to TikTok format: " + e.getMessage());
                                 }
                             }
 
@@ -105,6 +82,84 @@ public class YtDlpHelper {
         }).start();
     }
 
+    private void convertToTikTokFormatAndSave(File inputFile, Uri folderUri, DownloadProgressCallback callback) {
+        try {
+            DocumentFile pickedFolder = DocumentFile.fromTreeUri(context, folderUri);
+            if (pickedFolder == null || !pickedFolder.canWrite()) {
+                callback.onError("❌ Selected folder is not writable");
+                return;
+            }
+
+            String baseName = inputFile.getName();
+            if (baseName.contains(".")) {
+                baseName = baseName.substring(0, baseName.lastIndexOf("."));
+            }
+            String outputName = baseName + "_tiktok.mp4";
+
+            DocumentFile outFileDoc = pickedFolder.createFile("video/mp4", outputName);
+            if (outFileDoc == null) {
+                callback.onError("❌ Failed to create TikTok file");
+                return;
+            }
+
+            File tempOutFile = new File(context.getCacheDir(), outputName);
+
+            // Step 1: Get media info
+            MediaInformationSession infoSession = FFprobeKit.getMediaInformation(inputFile.getAbsolutePath());
+            String videoCodec = infoSession.getMediaInformation().getStreams().get(0).getCodec();
+            String audioCodec = infoSession.getMediaInformation().getStreams().size() > 1 ?
+                    infoSession.getMediaInformation().getStreams().get(1).getCodec() : "";
+
+            boolean needsReencode = false;
+
+            // TikTok wants h264 video + aac audio
+            if (!videoCodec.equalsIgnoreCase("h264") || !audioCodec.equalsIgnoreCase("aac")) {
+                needsReencode = true;
+            }
+
+            String cmd;
+            String format = String.format(
+                    "-i \"%s\" -c:v libx264 -preset fast -crf 18 -profile:v high -level 4.1 " +
+                            "-c:a aac -b:a 128k -ar 44100 -movflags +faststart -fps_mode passthrough \"%s\"",
+                    inputFile.getAbsolutePath(),
+                    tempOutFile.getAbsolutePath()
+            );
+//            if (!needsReencode) {
+//                cmd = format;
+//            } else {
+//                cmd = format;
+//                Log.d("ReCODING", "RECONDING");
+//            }
+
+            com.antonkarpenko.ffmpegkit.Session session = FFmpegKit.execute(format);
+
+            if (session.getReturnCode().isValueSuccess()) {
+                try (InputStream in = new FileInputStream(tempOutFile);
+                     OutputStream out = context.getContentResolver().openOutputStream(outFileDoc.getUri())) {
+                    byte[] buffer = new byte[8192];
+                    int len;
+                    while ((len = in.read(buffer)) != -1) {
+                        out.write(buffer, 0, len);
+                    }
+                }
+
+                tempOutFile.delete();
+                if (inputFile.exists()) inputFile.delete();
+
+                File parentDir = inputFile.getParentFile();
+                if (parentDir != null && parentDir.exists()) {
+                    deleteRecursive(parentDir);
+                }
+
+                callback.onComplete(outFileDoc.getUri().toString());
+            } else {
+                callback.onError("❌ TikTok conversion failed: " + session.getFailStackTrace());
+            }
+
+        } catch (Exception e) {
+            callback.onError("❌ Error: " + e.getMessage());
+        }
+    }
 
     // Helper: safely delete directories if needed
     private void deleteRecursive(File fileOrDir) {
@@ -122,7 +177,6 @@ public class YtDlpHelper {
         void onError(String error);
     }
 
-    // Plain Java bridge class
     public static class ProgressBridge {
         private final DownloadProgressCallback callback;
 
@@ -142,5 +196,4 @@ public class YtDlpHelper {
             callback.onError(errorMsg);
         }
     }
-
 }

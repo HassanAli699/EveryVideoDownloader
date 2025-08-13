@@ -26,8 +26,6 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
-import android.widget.Toast;
-
 import androidx.annotation.NonNull;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -36,7 +34,6 @@ import androidx.fragment.app.Fragment;
 import com.hassan.everyvideodownloader.R;
 import com.hassan.everyvideodownloader.services.DownloadService;
 import com.hassan.everyvideodownloader.utils.Utils;
-
 import java.net.HttpURLConnection;
 import java.net.URL;
 
@@ -68,17 +65,38 @@ public class HomeFragment extends Fragment {
                 downloadProgress.setVisibility(VISIBLE);
                 progressText.setVisibility(VISIBLE);
 
-                if (percent >= 0) {
+                // ✅ If waiting or processing → indeterminate spinner
+                if ("Waiting For Response...".equalsIgnoreCase(status) || "Processing...".equalsIgnoreCase(status)  || "Making Video Upload Ready Wait...".equalsIgnoreCase(status)) {
+                    downloadProgress.setIndeterminate(true);
+                    progressText.setText(status); // just show text
+                }
+                // ✅ Otherwise → show determinate progress with % text
+                else if (percent >= 0) {
                     downloadProgress.setIndeterminate(false);
                     downloadProgress.setProgress(percent);
-                } else {
-                    downloadProgress.setIndeterminate(true);
+                    progressText.setText(percent + "% Downloaded");
                 }
-                progressText.setText(status);
+                // ✅ Fallback for unknown state
+                else {
+                    downloadProgress.setIndeterminate(true);
+                    progressText.setText(status != null ? status : "Working...");
+                }
 
             } else if (DownloadService.ACTION_COMPLETE.equals(action)) {
-                progressText.setText("✅ Download finished");
+                progressText.setText("Download Complete ✅ \nYour video is now ready to be shared!");
                 downloadProgress.setVisibility(GONE);
+            } else if (DownloadService.ACTION_ERROR.equals(action)) {
+                String error = intent.getStringExtra("error");
+                downloadProgress.setVisibility(View.GONE);
+                progressText.setVisibility(View.VISIBLE);
+                progressText.setText(error != null ? error : "Unknown error ❌ \nTry again make sure the URl is working");
+
+                Utils.showAnimatedToast(
+                        getActivity(),
+                        error != null ? error : "Something went wrong",
+                        R.drawable.alert_error,
+                        Utils.ToastDuration.SHORT
+                );
             }
         }
     };
@@ -141,7 +159,7 @@ public class HomeFragment extends Fragment {
             }
             return currentUrl;
         } catch (Exception e) {
-            e.printStackTrace();
+           Log.e("ERROR", "ERROR WHILE GETTING URL" + e.getMessage());
             return shortUrl;
         }
     }
@@ -162,11 +180,23 @@ public class HomeFragment extends Fragment {
                             urlInput.setText(pastedText.toString());
                             pasteLinkBtn.setImageResource(R.drawable.clear);
                             pasteLinkBtn.setTag("clear");
-                            Toast.makeText(getContext(), "📋 Link pasted", Toast.LENGTH_SHORT).show();
+                            Utils.showAnimatedToast(
+                                    getActivity(),
+                                    "Link pasted",
+                                    R.drawable.check_mark,
+                                    Utils.ToastDuration.SHORT
+                            );
+                            // Toast.makeText(getContext(), "📋 ", Toast.LENGTH_SHORT).show();
                         }
                     }
                 } else {
-                    Toast.makeText(getContext(), "Clipboard is empty", Toast.LENGTH_SHORT).show();
+                    Utils.showAnimatedToast(
+                            getActivity(),
+                            "Clipboard is empty",
+                            R.drawable.alert_error,
+                            Utils.ToastDuration.SHORT
+                    );
+                   // Toast.makeText(getContext(), "Clipboard is empty", Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -217,7 +247,10 @@ public class HomeFragment extends Fragment {
     private void proceedWithDownload() {
         Uri savedFolder = getSavedFolderUri();
         if (isFolderValid(savedFolder)) {
-            startDownloadService(savedFolder);
+            if (downloadUrl != null) {
+                startDownloadService(savedFolder);
+            }
+          //  startDownloadService(savedFolder);
         } else {
             Utils.showAnimatedToast(
                     getActivity(),
@@ -253,6 +286,7 @@ public class HomeFragment extends Fragment {
         IntentFilter filter = new IntentFilter();
         filter.addAction(DownloadService.ACTION_PROGRESS);
         filter.addAction(DownloadService.ACTION_COMPLETE);
+        filter.addAction(DownloadService.ACTION_ERROR);
         ContextCompat.registerReceiver(requireContext(), downloadReceiver, filter, ContextCompat.RECEIVER_NOT_EXPORTED);
     }
 

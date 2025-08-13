@@ -23,6 +23,7 @@
         app:shapeAppearanceOverlay="@style/LeftRoundedImage" />
 
     <ImageView
+        android:id="@+id/imageView2"
         android:layout_width="50dp"
         android:layout_height="50dp"
         android:src="@drawable/video_play_btn"
@@ -47,19 +48,18 @@
 <!--        app:layout_constraintStart_toEndOf="@+id/videoThumbnail"-->
 <!--        app:layout_constraintTop_toTopOf="parent" />-->
 
-<!--    <TextView-->
-<!--        android:id="@+id/videoTime"-->
-<!--        android:layout_width="150dp"-->
-<!--        android:layout_height="wrap_content"-->
-<!--        android:fontFamily="@font/poppins_medium"-->
-<!--        android:gravity="start"-->
-<!--        android:paddingStart="10dp"-->
-<!--        android:layout_marginEnd="5dp"-->
-<!--        android:text="Video Time Here"-->
-<!--        android:textColor="@color/white"-->
-<!--        android:textSize="12sp"-->
-<!--        app:layout_constraintStart_toEndOf="@+id/videoThumbnail"-->
-<!--        app:layout_constraintTop_toBottomOf="@+id/videoTitle" />-->
+    <TextView
+        android:id="@+id/videoDuration"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/poppins_bold"
+        android:gravity="start"
+        android:text="15 Sec"
+        android:textColor="@color/white"
+        android:textSize="16sp"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/imageView2" />
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

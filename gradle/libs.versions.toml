@@ -1,6 +1,7 @@
 [versions]
 agp = "8.9.1"
-ffmpegKitFull = "1.0.0"
+ffmpegKitFull = "1.2.0"
+ffmpegKitFullGpl = "1.1.0"
 glide = "4.16.0"
 gradle = "14.0.2"
 junit = "4.13.2"
@@ -14,6 +15,7 @@ constraintlayout = "2.2.1"
 [libraries]
 compiler = { module = "com.github.bumptech.glide:compiler", version.ref = "glide" }
 ffmpeg-kit-full = { module = "com.antonkarpenko:ffmpeg-kit-full", version.ref = "ffmpegKitFull" }
+ffmpeg-kit-full-gpl = { module = "com.antonkarpenko:ffmpeg-kit-full-gpl", version.ref = "ffmpegKitFullGpl" }
 glide = { module = "com.github.bumptech.glide:glide", version.ref = "glide" }
 gradle = { module = "com.chaquo.python:gradle", version.ref = "gradle" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

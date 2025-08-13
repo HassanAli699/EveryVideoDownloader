@@ -28,6 +28,10 @@ public class Utils {
     }
 
     public static void showAnimatedToast(Activity activity, String message, int iconResId, ToastDuration duration) {
+        if (activity == null || activity.isFinishing() || activity.isDestroyed()) {
+            return; // prevent crash
+        }
+
         LayoutInflater inflater = LayoutInflater.from(activity);
         View toastView = inflater.inflate(R.layout.custom_toast, null);
 

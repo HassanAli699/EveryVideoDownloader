@@ -24,6 +24,7 @@ public class DownloadService extends Service {
     public static final String ACTION_START = "com.hassan.DOWNLOAD_START";
     public static final String ACTION_PROGRESS = "com.hassan.DOWNLOAD_PROGRESS";
     public static final String ACTION_COMPLETE = "com.hassan.DOWNLOAD_COMPLETE";
+    public static final String ACTION_ERROR = "com.hassan.everyvideodownloader.ERROR";
     public static final String CHANNEL_ID = "download_channel";
 
     private final IBinder binder = new LocalBinder();
@@ -37,6 +38,13 @@ public class DownloadService extends Service {
             return DownloadService.this;
         }
     }
+
+    private void sendErrorBroadcast(String message) {
+        Intent intent = new Intent(ACTION_ERROR);
+        intent.putExtra("error", message);
+        sendBroadcast(intent);
+    }
+
 
     @SuppressLint("ForegroundServiceType")
     @Override
@@ -95,6 +103,7 @@ public class DownloadService extends Service {
             public void onError(String error) {
                 updateState(-1, error);
                 updateNotification(-1, "Error: " + error);
+                sendErrorBroadcast(error);
 
                 stopForeground(true);
                 stopSelf();
@@ -134,10 +143,18 @@ public class DownloadService extends Service {
                 .setSmallIcon(R.drawable.evd_logo)
                 .setContentTitle("Downloading...");
 
-        if (percent >= 0) {
-            builder.setContentText(status + " (" + percent + "%)")
+        // ✅ If waiting or processing → show indeterminate progress
+        if (("Waiting For Response...".equalsIgnoreCase(status) || "Processing...".equalsIgnoreCase(status) || "Making Video Upload Ready Wait...".equalsIgnoreCase(status))) {
+            builder.setContentText(status) // just show the text
+                    .setProgress(0, 0, true); // indeterminate
+        }
+        // ✅ Otherwise → show determinate progress with "XX% Downloaded"
+        else if (percent >= 0) {
+            builder.setContentText(percent + "% Downloaded")
                     .setProgress(100, percent, false);
-        } else {
+        }
+        // Fallback: if no percent, just show text
+        else {
             builder.setContentText(status)
                     .setProgress(0, 0, true);
         }
