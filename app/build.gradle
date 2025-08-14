@@ -55,5 +55,7 @@ dependencies {
     implementation libs.ffmpeg.kit.full.gpl
     implementation libs.glide
     annotationProcessor libs.compiler
+    implementation libs.swiperefreshlayout
+    implementation libs.lottie
 }
 
