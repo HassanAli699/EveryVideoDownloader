@@ -25,7 +25,8 @@ public class DownloadService extends Service {
     public static final String ACTION_PROGRESS = "com.hassan.DOWNLOAD_PROGRESS";
     public static final String ACTION_COMPLETE = "com.hassan.DOWNLOAD_COMPLETE";
     public static final String ACTION_ERROR = "com.hassan.everyvideodownloader.ERROR";
-    public static final String CHANNEL_ID = "download_channel";
+    public static final String CHANNEL_ID_PROGRESS = "download_progress_channel";
+    public static final String CHANNEL_ID_COMPLETE = "download_complete_channel";
 
     private final IBinder binder = new LocalBinder();
 
@@ -54,7 +55,7 @@ public class DownloadService extends Service {
 
         Log.d("DownloadService", "URL: " + url + ", Folder URI: " + folderUri);
 
-        createNotificationChannel(); // ✅ Ensure channel exists first
+        createNotificationChannels(); // ✅ Ensure channel exists first
         startForeground(1, buildNotification("Preparing download..."));
 
         YtDlpHelper ytDlpHelper = new YtDlpHelper(this);
@@ -73,18 +74,19 @@ public class DownloadService extends Service {
             @Override
             public void onComplete(String folderPath) {
                 updateState(100, "Download finished");
-
+                long[] vibrationPattern = {0, 200, 100, 200};
 
                 // Stop foreground but keep the notification temporarily
                 stopForeground(false);
 
                 // Build and show "Download complete" notification
-                Notification completeNotification = new NotificationCompat.Builder(DownloadService.this, CHANNEL_ID)
+                Notification completeNotification = new NotificationCompat.Builder(DownloadService.this, CHANNEL_ID_COMPLETE)
                         .setSmallIcon(R.drawable.evd_logo)
                         .setContentTitle("Download complete")
                         .setContentText("Video saved to: " + folderPath)
-                        .setAutoCancel(true) // disappears when tapped
+                        .setAutoCancel(true)
                         .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setVibrate(vibrationPattern) // ✅ Add vibration
                         .build();
 
                 NotificationManager manager = getSystemService(NotificationManager.class);
@@ -113,23 +115,37 @@ public class DownloadService extends Service {
         return START_NOT_STICKY;
     }
 
-    private void createNotificationChannel() {
+    private void createNotificationChannels() {
+        NotificationManager manager = getSystemService(NotificationManager.class);
+        if (manager == null) return;
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            NotificationChannel channel = new NotificationChannel(
-                    CHANNEL_ID,
-                    "Downloads",
+            // Low importance for ongoing downloads
+            NotificationChannel progressChannel = new NotificationChannel(
+                    CHANNEL_ID_PROGRESS,
+                    "Download Progress",
                     NotificationManager.IMPORTANCE_LOW
             );
-            channel.setDescription("Video download progress");
-            NotificationManager manager = getSystemService(NotificationManager.class);
-            if (manager != null) {
-                manager.createNotificationChannel(channel);
-            }
+            progressChannel.setDescription("Shows ongoing download progress");
+            progressChannel.enableVibration(false);
+            progressChannel.setSound(null, null);
+
+            // High importance for completion alerts
+            NotificationChannel completeChannel = new NotificationChannel(
+                    CHANNEL_ID_COMPLETE,
+                    "Download Complete",
+                    NotificationManager.IMPORTANCE_HIGH
+            );
+            completeChannel.setDescription("Notifies when a download is complete");
+            completeChannel.enableVibration(true);
+
+            manager.createNotificationChannel(progressChannel);
+            manager.createNotificationChannel(completeChannel);
         }
     }
 
     private Notification buildNotification(String content) {
-        return new NotificationCompat.Builder(this, CHANNEL_ID)
+        return new NotificationCompat.Builder(this, CHANNEL_ID_PROGRESS)
                 .setSmallIcon(R.drawable.evd_logo)
                 .setContentTitle("Downloading video")
                 .setContentText(content)
@@ -139,7 +155,7 @@ public class DownloadService extends Service {
     }
 
     private void updateNotification(int percent, String status) {
-        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
+        NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID_PROGRESS)
                 .setSmallIcon(R.drawable.evd_logo)
                 .setContentTitle("Downloading...");
 
