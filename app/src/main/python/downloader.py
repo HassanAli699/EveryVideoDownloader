@@ -85,7 +85,7 @@ def download_video_with_progress(url, folder_path, callback):
         current_stage = "video"
         with yt.YoutubeDL({
             "outtmpl": video_tmpl,
-            "format": "bv*+ba/bv*/best",  # will try bestvideo+audio, else fallback to best
+            "format": "bv*+ba/bv*/best",  # bestvideo+audio, fallback to best
             "ignoreerrors": True,
             "cachedir": False,
             "progress_hooks": [my_hook]
@@ -100,7 +100,7 @@ def download_video_with_progress(url, folder_path, callback):
         current_stage = "audio"
         with yt.YoutubeDL({
             "outtmpl": audio_tmpl,
-            "format": "ba",
+            "format": "ba",  # best audio
             "ignoreerrors": True,
             "cachedir": False,
             "progress_hooks": [my_hook]
@@ -109,9 +109,8 @@ def download_video_with_progress(url, folder_path, callback):
 
         java_callback.update_progress(90, "Processing...")
 
-        # --- Decision logic ---
+        # Decision logic
         if len(downloaded_files) == 1:
-            # Only one file — check if it’s already a video
             single_file = downloaded_files[0]
             if single_file.lower().endswith(('.mp4', '.mov', '.mkv', '.avi', '.webm')):
                 java_callback.update_progress(100, "Making Video Upload Ready Wait...")
@@ -121,12 +120,24 @@ def download_video_with_progress(url, folder_path, callback):
                 raise Exception("Only one file downloaded but it’s not a supported video format")
 
         elif len(downloaded_files) >= 2:
-            # Merge video and audio
-            merged_output = get_unique_filename(os.path.join(out_folder, f"{video_title}.{video_ext}"))
+            # Detect container from video file
+            video_ext = pathlib.Path(downloaded_files[0]).suffix.lower()
+            if video_ext in ('.mp4', '.mov', '.mkv', '.avi'):
+                audio_codec = "-c:a aac -b:a 128k -ar 44100 -movflags +faststart"
+                output_ext = ".mp4"
+            elif video_ext == '.webm':
+                audio_codec = "-c:a libopus"
+                output_ext = ".webm"
+            else:
+                # fallback to mp4
+                audio_codec = "-c:a aac -b:a 128k -ar 44100 -movflags +faststart"
+                output_ext = ".mp4"
+
+            merged_output = get_unique_filename(os.path.join(out_folder, f"{video_title}{output_ext}"))
             command = (
                 f'-i "{downloaded_files[0]}" '
                 f'-i "{downloaded_files[1]}" '
-                f'-c:v copy -c:a aac -strict experimental "{merged_output}"'
+                f'-c:v copy {audio_codec} "{merged_output}"'
             )
 
             session = FFmpegKit.execute(command)
@@ -151,3 +162,4 @@ def download_video_with_progress(url, folder_path, callback):
         print(f"[Python] Full error: {e}")
         if java_callback:
             java_callback.error(format_user_friendly_error(e))
+
