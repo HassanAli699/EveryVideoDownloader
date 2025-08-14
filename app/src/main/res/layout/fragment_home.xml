@@ -154,15 +154,18 @@
                             android:layout_marginBottom="30dp"
                             android:drawableStart="@drawable/link"
                             android:hint="@string/paste_video_url_here_hint"
-                            android:inputType="textUri"
+                            android:inputType="none"
                             android:padding="18dp"
                             android:paddingEnd="50dp"
+                        android:focusable="false"
+                        android:cursorVisible="false"
                         android:ellipsize="end"
                         android:singleLine="true"
                         app:layout_constraintBottom_toBottomOf="parent"
                         app:layout_constraintEnd_toEndOf="parent"
                         app:layout_constraintStart_toStartOf="parent"
-                        app:layout_constraintTop_toBottomOf="@+id/titleDesc" />
+                        app:layout_constraintTop_toBottomOf="@+id/titleDesc"
+                            tools:ignore="RtlSymmetry" />
 
                         <ImageView
                             android:id="@+id/pasteLink"
@@ -281,7 +284,7 @@
             android:id="@+id/downloadProgress"
             style="?android:attr/progressBarStyleHorizontal"
             android:layout_width="match_parent"
-            android:layout_height="2dp"
+            android:layout_height="1dp"
             android:max="100"
             android:progress="90"
             android:indeterminateTint="@color/primaryRed"
@@ -300,7 +303,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="10dp"
             android:text="0% Downloaded"
-            android:textColor="@color/black"
+            android:textColor="#838383"
             android:fontFamily="@font/poppins_bold"
             android:visibility="gone"
             app:layout_constraintEnd_toEndOf="parent"
