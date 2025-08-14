@@ -36,6 +36,7 @@
         app:layout_constraintEnd_toEndOf="@id/titleOfDownloaded"
         app:layout_constraintTop_toTopOf="@+id/titleOfDownloaded" />
 
+
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/videosRecycler"
         android:layout_width="match_parent"
@@ -47,6 +48,26 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         tools:listitem="@layout/item_video" />
+
+    <!-- Keep loader as LAST child -->
+    <FrameLayout
+        android:id="@+id/loadingOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#A8000000"
+        android:clickable="true"
+        android:focusable="true"
+        android:visibility="gone">
+
+        <ProgressBar
+            android:id="@+id/loadingBar"
+            style="?android:attr/progressBarStyleLarge"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:layout_gravity="center"
+            android:indeterminate="true"
+            android:indeterminateTint="@color/white" />
+    </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>
 
