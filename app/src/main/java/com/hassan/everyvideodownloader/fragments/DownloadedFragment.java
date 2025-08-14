@@ -11,12 +11,15 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
-import android.widget.ProgressBar;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 
 import androidx.documentfile.provider.DocumentFile;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+
 import com.hassan.everyvideodownloader.R;
 import com.hassan.everyvideodownloader.adapters.VideoListAdapter;
 import com.hassan.everyvideodownloader.utils.Utils;
@@ -26,9 +29,12 @@ import java.util.List;
 public class DownloadedFragment extends Fragment {
 
     private RecyclerView videosRecycler;
+
     private static final String PREFS_NAME = "every_video_downloader_prefs";
     private static final String KEY_FOLDER_URI = "selected_folder_uri";
     private FrameLayout loadingOverlay;
+    private LinearLayout emptyViewContainer;
+
 
     public DownloadedFragment() {
         // Required empty public constructor
@@ -42,6 +48,14 @@ public class DownloadedFragment extends Fragment {
         videosRecycler = view.findViewById(R.id.videosRecycler);
         ImageView refreshBtn = view.findViewById(R.id.refreshBtn);
         loadingOverlay = view.findViewById(R.id.loadingOverlay);
+        SwipeRefreshLayout swipeRefreshLayout = view.findViewById(R.id.swipeRefreshLayout);
+        emptyViewContainer = view.findViewById(R.id.emptyViewContainer);
+
+        swipeRefreshLayout.setOnRefreshListener(() -> {
+            loadDownloadedVideos(); // your method to refresh videos
+            swipeRefreshLayout.setRefreshing(false); // stop the animation after loading
+        });
+
 
         refreshBtn.setOnClickListener(v -> {
             Log.d("DownloadedFragment", "Refresh button clicked");
@@ -95,26 +109,40 @@ public class DownloadedFragment extends Fragment {
         }
 
         showLoader();
-        // loadingOverlay.bringToFront();
+        long startTime = System.currentTimeMillis(); // Track when loader started
 
         new Thread(() -> {
             List<Uri> videoUris = getVideoUrisFromUri(savedFolderUri);
 
-            // Switch to main thread to update UI
             requireActivity().runOnUiThread(() -> {
-                VideoListAdapter adapter = new VideoListAdapter(getContext(), videoUris);
+                if (videoUris.isEmpty()) {
+                    videosRecycler.setVisibility(View.GONE);
+                    emptyViewContainer.setVisibility(View.VISIBLE);
+                } else {
+                    videosRecycler.setVisibility(View.VISIBLE);
+                    emptyViewContainer.setVisibility(View.GONE);
 
-                DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
-                float dpWidth = displayMetrics.widthPixels / displayMetrics.density;
-                int numOfColumns = (int) (dpWidth / 180); // 180dp per item
-                videosRecycler.setLayoutManager(new GridLayoutManager(getContext(), numOfColumns));
-                videosRecycler.setAdapter(adapter);
+                    VideoListAdapter adapter = new VideoListAdapter(getContext(), videoUris);
 
-                hideLoader();
+                    DisplayMetrics displayMetrics = getResources().getDisplayMetrics();
+                    float dpWidth = displayMetrics.widthPixels / displayMetrics.density;
+                    int numOfColumns = (int) (dpWidth / 180);
+                    videosRecycler.setLayoutManager(new GridLayoutManager(getContext(), numOfColumns));
+                    videosRecycler.setAdapter(adapter);
+                }
 
+                long elapsed = System.currentTimeMillis() - startTime;
+                long remaining = 1000 - elapsed;
+
+                if (remaining > 0) {
+                    videosRecycler.postDelayed(this::hideLoader, remaining);
+                } else {
+                    hideLoader();
+                }
             });
         }).start();
     }
+
 
     private Uri getSavedFolderUri() {
         SharedPreferences prefs = requireContext().getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
