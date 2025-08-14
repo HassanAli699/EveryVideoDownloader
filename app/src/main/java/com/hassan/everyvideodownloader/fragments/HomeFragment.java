@@ -205,6 +205,10 @@ public class HomeFragment extends Fragment {
     private void setupDownloadButton() {
         downloadBtn.setOnClickListener(v -> {
             if (checkPermissions()) {
+                downloadProgress.setVisibility(VISIBLE);
+                downloadProgress.setIndeterminate(true);
+                progressText.setVisibility(VISIBLE);
+                progressText.setText("Starting Download...");
                 startDownload();
             } else {
                 requestPermissions();
